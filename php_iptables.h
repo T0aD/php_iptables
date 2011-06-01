@@ -42,8 +42,12 @@ PHP_RINIT_FUNCTION(iptables);
 PHP_RSHUTDOWN_FUNCTION(iptables);
 PHP_MINFO_FUNCTION(iptables);
 
+PHP_FUNCTION(ipt_is_chain);
+PHP_FUNCTION(ipt_get_chains);
 PHP_FUNCTION(ipt_get_policy);
 PHP_FUNCTION(ipt_set_policy);
+PHP_FUNCTION(ipt_delete_chain);
+PHP_FUNCTION(ipt_create_chain);
 PHP_FUNCTION(suck_my_balls);
 PHP_FUNCTION(confirm_iptables_compiled);	/* For testing, remove later. */
 

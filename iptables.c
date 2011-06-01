@@ -16,6 +16,9 @@
   +----------------------------------------------------------------------+
 */
 
+/**
+ * Helpful documentation: http://www.linuxdoc.org/HOWTO/Querying-libiptc-HOWTO/mfunction.html
+ */
 /* $Id: header 252479 2008-02-07 19:39:50Z iliaa $ */
 
 #ifdef HAVE_CONFIG_H
@@ -31,6 +34,7 @@
 #include <netinet/ip.h>
 #include <libiptc/libiptc.h>
 
+
 /* If you declare any globals in php_iptables.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(iptables)
 */
@@ -43,8 +47,12 @@ static int le_iptables;
  * Every user visible function must have an entry in iptables_functions[].
  */
 const zend_function_entry iptables_functions[] = {
+	PHP_FE(ipt_is_chain, NULL)
+	PHP_FE(ipt_get_chains, NULL)
 	PHP_FE(ipt_get_policy, NULL)
 	PHP_FE(ipt_set_policy, NULL)
+	PHP_FE(ipt_delete_chain, NULL)
+	PHP_FE(ipt_create_chain, NULL)
 	PHP_FE(suck_my_balls, NULL)
 	PHP_FE(confirm_iptables_compiled,	NULL)		/* For testing, remove later. */
 	{NULL, NULL, NULL}	/* Must be the last line in iptables_functions[] */
@@ -150,6 +158,144 @@ PHP_MINFO_FUNCTION(iptables)
 }
 /* }}} */
 
+/** Utility functions */
+int check_root()
+{
+	if (getuid() != 0) {
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "you need to be root");
+		return 0;
+	}
+	return 1;
+}
+
+struct iptc_handle *php_iptc_init(const char *table)
+{
+}
+
+int php_iptc_commit(struct iptc_handle *handle)
+{
+	int ret;
+	ret = iptc_commit(handle);
+	if (!ret) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "commit error");
+	}
+	return ret;
+}
+
+/** Used to set the global table / handle to the rest of the functions 
+	Default to "filter"
+*/
+PHP_FUNCTION(ipt_set_table)
+{
+	const char *table = "filter";
+}
+
+PHP_FUNCTION(ipt_is_chain)
+{
+	struct iptc_handle *handle = NULL;
+	const char *table = "filter";
+	char *chain;
+	int chain_len;
+	int ret;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &chain, &chain_len) == FAILURE) {
+		return;
+	}
+
+	check_root();
+	handle = iptc_init(table);
+	if (handle == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "couldnt create handle");
+		RETURN_FALSE;
+	}
+
+	ret = iptc_is_chain(chain, handle);
+	RETURN_BOOL(ret);
+}
+
+PHP_FUNCTION(ipt_get_chains)
+{
+	struct iptc_handle *handle = NULL;
+	const char *table = "filter";
+	char *chain;
+   	check_root();
+	handle = iptc_init(table);
+	if (handle == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "couldnt create handle");
+		RETURN_FALSE;
+	}
+
+	chain = iptc_first_chain(handle);
+	php_printf("chain found: %s\n", chain);
+	while (chain = iptc_next_chain(handle)) {
+		php_printf("chain found: %s\n", chain);
+	}
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(ipt_delete_chain)
+{
+	struct iptc_handle *handle = NULL;
+	const char *table = "filter";
+	char *chain;
+	int chain_len;
+	int ret;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &chain, &chain_len) == FAILURE) {
+		return;
+	}
+
+	check_root();
+	handle = iptc_init(table);
+	if (handle == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "couldnt create handle");
+		RETURN_FALSE;
+	}
+
+   	ret = iptc_delete_chain(chain, handle);
+	if (!ret) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, 
+						 "couldn't delete chain %s: %s (%d)", chain, iptc_strerror(errno), errno);
+	}
+
+	php_iptc_commit(handle);
+	RETURN_BOOL(ret);
+}
+
+PHP_FUNCTION(ipt_create_chain)
+{
+	struct iptc_handle *handle = NULL;
+	const char *table = "filter";
+	char *chain;
+	int chain_len;
+	int ret;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &chain, &chain_len) == FAILURE) {
+		return;
+	}
+
+	check_root();
+	handle = iptc_init(table);
+	if (handle == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "couldnt create handle");
+		RETURN_FALSE;
+	}
+
+	/*	
+	php_printf("attempting to create a new chain: %s (%d) (errno: %d)\n",
+			   chain, chain_len, errno);
+	*/
+	/** ipt_chainlabel is a char[32] */
+   	ret = iptc_create_chain(chain, handle);
+	if (!ret) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, 
+						 "couldn't create chain %s: %s (%d)", chain, iptc_strerror(errno), errno);
+	}
+
+	php_iptc_commit(handle);
+	RETURN_BOOL(ret);
+}
+
 PHP_FUNCTION(ipt_get_policy)
 {
 	struct ipt_counters counters;
@@ -163,6 +309,9 @@ PHP_FUNCTION(ipt_get_policy)
 		//		php_error_docref(NULL TSRMLS_CC, E_WARNING, "expects a chain name");
 		return;
 	}
+
+	check_root();
+
 	const char *table = "filter";
 	//	php_printf("table: %s\n", table);
 	handle = iptc_init(table);
@@ -176,6 +325,8 @@ PHP_FUNCTION(ipt_get_policy)
 	RETURN_STRING(pol, 1);
 }
 
+
+/** NON WORKING SO FAR */
 PHP_FUNCTION(ipt_set_policy) 
 {
 	struct ipt_counters *new_counters = NULL;
@@ -185,20 +336,25 @@ PHP_FUNCTION(ipt_set_policy)
 	int chain_len;
 	char *policy;
 	int policy_len;
+	int ret;
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", 
 							  &chain, &chain_len, &policy, &policy_len) == FAILURE) {
 		return;
 	}
+
+	check_root();
+
 	const char *table = "filter";
 	handle = iptc_init(table);
 	if (handle == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "needs to run as root");
 		return;
 	}
-	iptc_get_policy(chain, &counters, handle);
-	// doesnt work:
+	//	iptc_get_policy(chain, &counters, handle);
 	iptc_set_policy(chain, policy, new_counters, handle);
-	RETURN_TRUE;
+
+	ret = php_iptc_commit(handle);
+	RETURN_BOOL(ret);
 }
 
 PHP_FUNCTION(suck_my_balls)
