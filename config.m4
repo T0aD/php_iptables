@@ -44,20 +44,20 @@ if test "$PHP_IPTABLES" != "no"; then
   dnl PHP_ADD_INCLUDE($IPTABLES_DIR/include)
 
   dnl # --with-iptables -> check for lib and symbol presence
-  dnl LIBNAME=iptables # you may want to change this
-  dnl LIBSYMBOL=iptables # you most likely want to change this 
+  dnl LIBNAME=iptc # you may want to change this
+  dnl LIBSYMBOL=iptc # you most likely want to change this 
 
-  dnl PHP_CHECK_LIBRARY($LIBNAME,$LIBSYMBOL,
-  dnl [
-  dnl   PHP_ADD_LIBRARY_WITH_PATH($LIBNAME, $IPTABLES_DIR/lib, IPTABLES_SHARED_LIBADD)
-  dnl   AC_DEFINE(HAVE_IPTABLESLIB,1,[ ])
-  dnl ],[
-  dnl   AC_MSG_ERROR([wrong iptables lib version or lib not found])
-  dnl ],[
-  dnl   -L$IPTABLES_DIR/lib -lm
-  dnl ])
-  dnl
-  dnl PHP_SUBST(IPTABLES_SHARED_LIBADD)
+  dnl  PHP_CHECK_LIBRARY($LIBNAME,$LIBSYMBOL,
+  dnl	[
+  dnl	PHP_ADD_LIBRARY_WITH_PATH($LIBNAME, $IPTABLES_DIR/lib, IPTABLES_SHARED_LIBADD)
+  dnl	AC_DEFINE(HAVE_IPTABLESLIB,1,[ ])
+  dnl	],[
+  dnl  	AC_MSG_ERROR([wrong iptables lib version or lib not found])
+  dnl  	],[
+  dnl	-L$IPTABLES_DIR/lib -lm
+  dnl	])
+  PHP_ADD_LIBRARY(iptc,, IPTABLES_SHARED_LIBADD)
+  PHP_SUBST(IPTABLES_SHARED_LIBADD)
 
   PHP_NEW_EXTENSION(iptables, iptables.c, $ext_shared)
 fi

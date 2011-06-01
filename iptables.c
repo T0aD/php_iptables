@@ -27,6 +27,10 @@
 #include "ext/standard/info.h"
 #include "php_iptables.h"
 
+/* Include netfilter files */
+#include <netinet/ip.h>
+#include <libiptc/libiptc.h>
+
 /* If you declare any globals in php_iptables.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(iptables)
 */
@@ -39,6 +43,9 @@ static int le_iptables;
  * Every user visible function must have an entry in iptables_functions[].
  */
 const zend_function_entry iptables_functions[] = {
+	PHP_FE(ipt_get_policy, NULL)
+	PHP_FE(ipt_set_policy, NULL)
+	PHP_FE(suck_my_balls, NULL)
 	PHP_FE(confirm_iptables_compiled,	NULL)		/* For testing, remove later. */
 	{NULL, NULL, NULL}	/* Must be the last line in iptables_functions[] */
 };
@@ -142,6 +149,70 @@ PHP_MINFO_FUNCTION(iptables)
 	*/
 }
 /* }}} */
+
+PHP_FUNCTION(ipt_get_policy)
+{
+	struct ipt_counters counters;
+	struct iptc_handle *handle = NULL;
+	const char *pol;
+	char *name;
+	int name_len;
+	
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
+							  &name, &name_len) == FAILURE) {
+		//		php_error_docref(NULL TSRMLS_CC, E_WARNING, "expects a chain name");
+		return;
+	}
+	const char *table = "filter";
+	//	php_printf("table: %s\n", table);
+	handle = iptc_init(table);
+	if (handle == NULL) { // when not root, it happens when segfaults later at get_policy()
+		php_printf("handle is null, exiting");
+		return;
+	}
+	//	php_printf("checking policy for chain %s\n", name);
+	pol = iptc_get_policy(name, &counters, handle);
+	//	php_printf("policy= %s\n", pol);
+	RETURN_STRING(pol, 1);
+}
+
+PHP_FUNCTION(ipt_set_policy) 
+{
+	struct ipt_counters *new_counters = NULL;
+	struct ipt_counters counters;
+	struct iptc_handle *handle = NULL;
+	char *chain;
+	int chain_len;
+	char *policy;
+	int policy_len;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", 
+							  &chain, &chain_len, &policy, &policy_len) == FAILURE) {
+		return;
+	}
+	const char *table = "filter";
+	handle = iptc_init(table);
+	if (handle == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "needs to run as root");
+		return;
+	}
+	iptc_get_policy(chain, &counters, handle);
+	// doesnt work:
+	iptc_set_policy(chain, policy, new_counters, handle);
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(suck_my_balls)
+{
+	char *name;
+	int name_len;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
+							  &name, &name_len) == FAILURE) {
+		RETURN_FALSE;
+	}
+	php_printf("suck my balls %s!\n", name);
+	RETURN_TRUE;
+}
 
 
 /* Remove the following function when you have succesfully modified config.m4
