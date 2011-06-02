@@ -17,8 +17,14 @@
 */
 
 /*
- * Helpful documentation: http://www.linuxdoc.org/HOWTO/Querying-libiptc-HOWTO/mfunction.html
+ * Documentation (Netfilter):
+ * http://www.linuxdoc.org/HOWTO/Querying-libiptc-HOWTO/mfunction.html
  * http://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-4.html
+ *
+ * Documentation (PHP extensions):
+ * Extension Writing Part II: Parameters, Arrays, and ZVALs:
+ * http://devzone.zend.com/node/view/id/1022
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -39,13 +45,14 @@
 /** Collect version from netfilter bundle */
 #include "iptables/include/iptables/internal.h"
 
-/** Get some external variables */
+/** Get some external variables (otherwise wont work) */
 #include "iptables/include/iptables.h"
 
+#define	DEFAULT_TABLE	"filter"
 
-/* If you declare any globals in php_iptables.h uncomment this:
-ZEND_DECLARE_MODULE_GLOBALS(iptables)
-*/
+/* If you declare any globals in php_iptables.h uncomment this: */
+ZEND_DECLARE_MODULE_GLOBALS(iptables2)
+
 
 /* True global resources - no need for thread safety here */
 static int le_iptables;
@@ -55,6 +62,12 @@ static int le_iptables;
  * Every user visible function must have an entry in iptables_functions[].
  */
 const zend_function_entry iptables_functions[] = {
+
+	PHP_FE(iptc_get, NULL)
+	PHP_FE(iptc_inc, NULL)
+
+	PHP_FE(iptc_commit, NULL)
+	PHP_FE(ipt_flush_entries, NULL)
 	PHP_FE(ipt_do_command, NULL)
 	PHP_FE(ipt_insert_rule, NULL)
 	PHP_FE(ipt_is_chain, NULL)
@@ -121,6 +134,8 @@ PHP_MINIT_FUNCTION(iptables)
 	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();
 	*/
+	IPTABLES_G(table) = DEFAULT_TABLE;
+	IPTABLES_G(counter) = 0;
 	return SUCCESS;
 }
 /* }}} */
@@ -168,6 +183,21 @@ PHP_MINFO_FUNCTION(iptables)
 }
 /* }}} */
 
+
+PHP_FUNCTION(iptc_get)
+{
+	php_iptc_init();
+	php_printf("current counter: %ld\n", IPTABLES_G(counter));
+	RETURN_LONG(IPTABLES_G(counter));
+}
+PHP_FUNCTION(iptc_inc)
+{
+	php_iptc_init();
+	IPTABLES_G(counter) = IPTABLES_G(counter) + 1;
+	php_printf("current counter: %ld\n", IPTABLES_G(counter));
+}
+
+
 /** Utility functions */
 int check_root()
 {
@@ -178,8 +208,66 @@ int check_root()
 	return 1;
 }
 
-struct iptc_handle *php_iptc_init(const char *table)
+
+
+int php_iptc_init()
 {
+	char *table;
+	struct iptc_handle *handle;
+
+	handle = IPTABLES_G(handle);
+	if (handle != NULL) {
+		php_printf("handle already defined!\n");
+		/* Handle already defined */
+		return SUCCESS; 
+	}
+
+	table = IPTABLES_G(table);
+	php_printf("fetched table name: %s\n", table);
+	handle = iptc_init(table);
+	if (! handle) {
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Cannot get a handle: %s (%d)",
+						 iptc_strerror(errno), errno);
+		return FAILURE;
+	}
+	IPTABLES_G(handle) = handle;
+
+	return SUCCESS;
+}
+
+/** Ripped off from iptables-restore.c */
+static struct iptc_handle *create_handle(const char *tablename)
+{
+	struct iptc_handle *handle;
+
+	handle = iptc_init(tablename);
+	/*
+	if (!handle) {
+		xtables_load_ko(xtables_modprobe_program, false);
+		handle = iptc_init(tablename);
+	}
+
+	if (!handle) {
+		xtables_error(PARAMETER_PROBLEM, "%s: unable to initialize "
+					  "table '%s'\n", prog_name, tablename);
+		exit(1);
+	}
+	*/
+	return handle;
+}
+
+PHP_FUNCTION(iptc_commit)
+{
+	struct iptc_handle *handle;
+	const char *table = "filter";
+	check_root();
+	handle = iptc_init(table);
+	if (handle == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "couldnt create handle");
+		RETURN_FALSE;
+	}
+
+	RETURN_BOOL(php_iptc_commit(handle));
 }
 
 int php_iptc_commit(struct iptc_handle *handle)
@@ -189,6 +277,11 @@ int php_iptc_commit(struct iptc_handle *handle)
 	if (!ret) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "commit error");
 	}
+
+	/** Free memory ? */
+	//   	iptc_free(handle);
+	handle = NULL;
+
 	return ret;
 }
 
@@ -221,7 +314,8 @@ PHP_FUNCTION(ipt_insert_rule)
 	}
 
 	check_root();
-	handle = iptc_init(table);
+	handle = create_handle(table);
+	//	handle = iptc_init(table);
 	if (handle == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "couldnt create handle");
 		RETURN_FALSE;
@@ -311,7 +405,8 @@ PHP_FUNCTION(ipt_do_command)
 	}
 
 	check_root();
-	handle = iptc_init(table);
+	handle = create_handle(table);
+	//	handle = iptc_init(table);
 	if (handle == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, 
 						 "couldn't create handle: %s (%d)", iptc_strerror(errno), errno);
@@ -322,21 +417,19 @@ PHP_FUNCTION(ipt_do_command)
 	iptables_globals.program_name = "iptables";
 	ret = xtables_init_all(&iptables_globals, NFPROTO_IPV4);
 
-
 	/** Parsing the command */
 	php_printf("executing command: %s\n", command);
 	argv = explode(command, ' ', &argc);
+	/* DEBUG 
 	unsigned int i;
 	for (i = 0; argv[i]; i++) {
 		php_printf("argv[%d]: %s (%d)\n", i, argv[i], argc);
 	}
+	*/
 
-	//	php_printf("i: %d\n", i);
 	if (! strcmp(IPTABLES_VERSION, "1.4.11")) {
-		php_printf("using do_command4() version: %s\n", IPTABLES_VERSION);
 		ret = do_command4(argc, argv, &table, &handle);
 	} else if (! strcmp(IPTABLES_VERSION, "1.4.4")) {
-		php_printf("using do_command() version: %s\n", IPTABLES_VERSION);
 		ret = do_command(argc, argv, &table, &handle);
 	}
 	if (! ret) {
@@ -344,6 +437,8 @@ PHP_FUNCTION(ipt_do_command)
 						 "%s (%d)", iptc_strerror(errno), errno);	
 	} else {
 		php_iptc_commit(handle);
+		//		iptc_free(handle);
+		//		handle = NULL;
 	}
 	RETURN_BOOL(ret);
 }
@@ -368,6 +463,7 @@ PHP_FUNCTION(ipt_is_chain)
 	}
 
 	ret = iptc_is_chain(chain, handle);
+	//	iptc_free(handle); // test
 	RETURN_BOOL(ret);
 }
 
@@ -376,6 +472,9 @@ PHP_FUNCTION(ipt_get_chains)
 	struct iptc_handle *handle = NULL;
 	const char *table = "filter";
 	char *chain;
+	int refs;
+	zval *chains;
+
    	check_root();
 	handle = iptc_init(table);
 	if (handle == NULL) {
@@ -383,14 +482,51 @@ PHP_FUNCTION(ipt_get_chains)
 		RETURN_FALSE;
 	}
 
-	/*
-	chain = iptc_first_chain(handle);
-	php_printf("chain found: %s\n", chain);
-	while ((chain = iptc_next_chain(handle)) != NULL) {
-		php_printf("chain found: %s\n", chain);
+	ALLOC_INIT_ZVAL(chains);
+	array_init(chains);
+	for (chain = iptc_first_chain(handle); 
+		 chain != NULL && iptc_get_references(&refs, chain, handle); 
+		 chain = iptc_next_chain(handle)) {
+		//		php_printf("chain found: %s (%d references)\n", chain, refs);
+		add_next_index_string(chains, chain, 1);
+		if (refs == 0) {
+			//			php_printf("deleting empty chain: %s ..\n", chain);
+			//			iptc_delete_chain(chain, handle);
+		}
 	}
-	*/
-	RETURN_TRUE;
+	//	php_iptc_commit(handle);
+	
+
+	RETURN_ZVAL(chains, 1, 0);
+}
+
+PHP_FUNCTION(ipt_flush_entries)
+{
+	struct iptc_handle *handle = NULL;
+	const char *table = "filter";
+	char *chain;
+	int chain_len;
+	int ret;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &chain, &chain_len) == FAILURE) {
+		return;
+	}
+
+	check_root();
+	handle = iptc_init(table);
+	if (handle == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "couldnt create handle");
+		RETURN_FALSE;
+	}
+
+   	ret = iptc_flush_entries(chain, handle);
+	if (!ret) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, 
+						 "couldn't flush entries for chain %s: %s (%d)", chain, iptc_strerror(errno), errno);
+	}
+
+	php_iptc_commit(handle);
+	RETURN_BOOL(ret);
 }
 
 PHP_FUNCTION(ipt_delete_chain)
@@ -482,6 +618,7 @@ PHP_FUNCTION(ipt_get_policy)
 	//	php_printf("checking policy for chain %s\n", name);
 	pol = iptc_get_policy(name, &counters, handle);
 	//	php_printf("policy= %s\n", pol);
+	//	iptc_free(handle); // test
 	RETURN_STRING(pol, 1);
 }
 

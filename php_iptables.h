@@ -42,6 +42,11 @@ PHP_RINIT_FUNCTION(iptables);
 PHP_RSHUTDOWN_FUNCTION(iptables);
 PHP_MINFO_FUNCTION(iptables);
 
+PHP_FUNCTION(iptc_inc);
+PHP_FUNCTION(iptc_get);
+
+PHP_FUNCTION(iptc_commit);
+PHP_FUNCTION(ipt_flush_entries);
 PHP_FUNCTION(ipt_do_command);
 PHP_FUNCTION(ipt_insert_rule);
 PHP_FUNCTION(ipt_is_chain);
@@ -56,12 +61,15 @@ PHP_FUNCTION(confirm_iptables_compiled);	/* For testing, remove later. */
 /* 
   	Declare any global variables you may need between the BEGIN
 	and END macros here:     
-
-ZEND_BEGIN_MODULE_GLOBALS(iptables)
-	long  global_value;
-	char *global_string;
-ZEND_END_MODULE_GLOBALS(iptables)
 */
+ZEND_BEGIN_MODULE_GLOBALS(iptables2)
+    char *table;
+	struct iptc_handle *handle;
+    long counter;
+	//	long  global_value;
+	//	char *global_string;
+ZEND_END_MODULE_GLOBALS(iptables2)
+
 
 /* In every utility function you add that needs to use variables 
    in php_iptables_globals, call TSRMLS_FETCH(); after declaring other 
@@ -74,9 +82,9 @@ ZEND_END_MODULE_GLOBALS(iptables)
 */
 
 #ifdef ZTS
-#define IPTABLES_G(v) TSRMG(iptables_globals_id, zend_iptables_globals *, v)
+#define IPTABLES_G(v) TSRMG(iptables2_globals_id, zend_iptables_globals *, v)
 #else
-#define IPTABLES_G(v) (iptables_globals.v)
+#define IPTABLES_G(v) (iptables2_globals.v)
 #endif
 
 #endif	/* PHP_IPTABLES_H */
