@@ -1,0 +1,70 @@
+
+        if (shostnetworkmask)
+                xtables_ipparse_multiple(shostnetworkmask, &saddrs,
+                                         &smasks, &nsaddrs);
+        case CMD_INSERT:
+                ret = insert_entry(chain, e, rulenum - 1,
+                                   nsaddrs, saddrs, smasks,
+                                   ndaddrs, daddrs, dmasks,
+                                   cs.options&OPT_VERBOSE,
+                                   *handle);
+                break;
+insert_entry(const ipt_chainlabel chain,
+             struct ipt_entry *fw,
+             unsigned int rulenum,
+             unsigned int nsaddrs,
+             const struct in_addr saddrs[],
+             const struct in_addr smasks[],
+             unsigned int ndaddrs,
+             const struct in_addr daddrs[],
+             const struct in_addr dmasks[],
+             int verbose,
+             struct iptc_handle *handle)
+{
+        unsigned int i, j;
+        int ret = 1;
+
+        for (i = 0; i < nsaddrs; i++) {
+                fw->ip.src.s_addr = saddrs[i].s_addr;
+                fw->ip.smsk.s_addr = smasks[i].s_addr;
+                for (j = 0; j < ndaddrs; j++) {
+                        fw->ip.dst.s_addr = daddrs[j].s_addr;
+                        fw->ip.dmsk.s_addr = dmasks[j].s_addr;
+                        if (verbose)
+                                print_firewall_line(fw, handle);
+                        ret &= iptc_insert_entry(chain, fw, rulenum, handle);
+                }
+        }
+
+        return ret;
+}
+                        e = generate_entry(&cs.fw, cs.matches, cs.target->t);
+
+generate_entry(const struct ipt_entry *fw,
+               struct xtables_rule_match *matches,
+               struct ipt_entry_target *target)
+{
+        unsigned int size;
+        struct xtables_rule_match *matchp;
+        struct ipt_entry *e;
+
+        size = sizeof(struct ipt_entry);
+        for (matchp = matches; matchp; matchp = matchp->next)
+                size += matchp->match->m->u.match_size;
+
+        e = xtables_malloc(size + target->u.target_size);
+        *e = *fw;
+        e->target_offset = size;
+        e->next_offset = size + target->u.target_size;
+
+        size = 0;
+        for (matchp = matches; matchp; matchp = matchp->next) {
+                memcpy(e->elems + size, matchp->match->m, matchp->match->m->u.match_size);
+                size += matchp->match->m->u.match_size;
+        }
+        memcpy(e->elems + size, target, target->u.target_size);
+
+        return e;
+}
+
+

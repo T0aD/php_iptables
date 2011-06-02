@@ -16,10 +16,10 @@
   +----------------------------------------------------------------------+
 */
 
-/**
+/*
  * Helpful documentation: http://www.linuxdoc.org/HOWTO/Querying-libiptc-HOWTO/mfunction.html
+ * http://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-4.html
  */
-/* $Id: header 252479 2008-02-07 19:39:50Z iliaa $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -30,9 +30,11 @@
 #include "ext/standard/info.h"
 #include "php_iptables.h"
 
-/* Include netfilter files */
+/* Include libiptc */
 #include <netinet/ip.h>
 #include <libiptc/libiptc.h>
+/* Include xtables */
+#include <xtables.h>
 
 
 /* If you declare any globals in php_iptables.h uncomment this:
@@ -47,6 +49,7 @@ static int le_iptables;
  * Every user visible function must have an entry in iptables_functions[].
  */
 const zend_function_entry iptables_functions[] = {
+	PHP_FE(ipt_insert_rule, NULL)
 	PHP_FE(ipt_is_chain, NULL)
 	PHP_FE(ipt_get_chains, NULL)
 	PHP_FE(ipt_get_policy, NULL)
@@ -182,12 +185,99 @@ int php_iptc_commit(struct iptc_handle *handle)
 	return ret;
 }
 
+/** Ripped off iptables.c (maybe we should rip ALL OFF ? like the perl module ? */
+static struct ipt_entry *
+generate_entry(const struct ipt_entry *fw,
+               struct xtables_rule_match *matches,
+               struct ipt_entry_target *target)
+{
+	unsigned int size;
+	struct xtables_rule_match *matchp;
+	struct ipt_entry *e;
+
+	size = sizeof(struct ipt_entry);
+	for (matchp = matches; matchp; matchp = matchp->next)
+		size += matchp->match->m->u.match_size;
+
+	e = xtables_malloc(size + target->u.target_size);
+	*e = *fw;
+	e->target_offset = size;
+	e->next_offset = size + target->u.target_size;
+
+	size = 0;
+	for (matchp = matches; matchp; matchp = matchp->next) {
+		memcpy(e->elems + size, matchp->match->m, matchp->match->m->u.match_size);
+		size += matchp->match->m->u.match_size;
+	}
+	memcpy(e->elems + size, target, target->u.target_size);
+
+	return e;
+}
+
+
 /** Used to set the global table / handle to the rest of the functions 
 	Default to "filter"
 */
 PHP_FUNCTION(ipt_set_table)
 {
 	const char *table = "filter";
+}
+
+PHP_FUNCTION(ipt_insert_rule)
+{
+	unsigned int i;
+	struct iptc_handle *handle = NULL;
+	const char *table = "filter";
+	//	struct ipt_entry *e = NULL;
+	const struct ipt_entry *e;
+	char *chain, *source, *target;
+	int chain_len, source_len, target_len;
+	int ret;
+	unsigned int nsaddrs = 0;
+	struct in_addr *saddrs = NULL, *smasks = NULL;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sss", 
+							  &chain, &chain_len, &source, &source_len, 
+							  &target, &target_len) == FAILURE) {
+		return;
+	}
+
+	check_root();
+	handle = iptc_init(table);
+	if (handle == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "couldnt create handle");
+		RETURN_FALSE;
+	}
+
+	php_printf("+i %30s %20s %30s\n", chain, source, target);
+	xtables_ipparse_multiple(source, &saddrs, &smasks, &nsaddrs);
+   	php_printf("result: %d addresses\n", nsaddrs);
+	if (nsaddrs != 1) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Found too few or many address(es): %d",
+						 nsaddrs);
+		return;
+	}
+
+
+	//	e = generate_entry();
+	//	php_printf("debug 1\n");
+	//	e->ip.src.s_addr = saddrs[0].s_addr;
+	//	e->ip.smsk.s_addr = smasks[0].s_addr;
+	//	php_printf("debug 2\n");
+	ret = 1;
+	//	ret = iptc_insert_entry(chain, e, -1, handle);
+	if (! ret) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, 
+						 "cannot insert rule: %s (%d)", iptc_strerror(errno), errno);
+	}
+
+	php_iptc_commit(handle);
+	RETURN_BOOL(ret);
+}
+
+/** do_command4() */
+PHP_FUNCTION(ipt_do_command)
+{
 }
 
 PHP_FUNCTION(ipt_is_chain)
@@ -227,7 +317,7 @@ PHP_FUNCTION(ipt_get_chains)
 
 	chain = iptc_first_chain(handle);
 	php_printf("chain found: %s\n", chain);
-	while (chain = iptc_next_chain(handle)) {
+	while ((chain = iptc_next_chain(handle)) != NULL) {
 		php_printf("chain found: %s\n", chain);
 	}
 	RETURN_TRUE;

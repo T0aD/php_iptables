@@ -57,6 +57,7 @@ if test "$PHP_IPTABLES" != "no"; then
   dnl	-L$IPTABLES_DIR/lib -lm
   dnl	])
   PHP_ADD_LIBRARY(iptc,, IPTABLES_SHARED_LIBADD)
+  PHP_ADD_LIBRARY(xtables,, IPTABLES_SHARED_LIBADD)
   PHP_SUBST(IPTABLES_SHARED_LIBADD)
 
   PHP_NEW_EXTENSION(iptables, iptables.c, $ext_shared)
