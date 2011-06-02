@@ -40,6 +40,10 @@ if test "$PHP_IPTABLES" != "no"; then
   dnl   AC_MSG_ERROR([Please reinstall the iptables distribution])
   dnl fi
 
+  dnl Check for bundle iptables source
+  AC_MSG_CHECKING([your mom])
+  AC_MSG_RESULT([nice ass!])
+
   dnl # --with-iptables -> add include path
   dnl PHP_ADD_INCLUDE($IPTABLES_DIR/include)
 
@@ -60,5 +64,5 @@ if test "$PHP_IPTABLES" != "no"; then
   PHP_ADD_LIBRARY(xtables,, IPTABLES_SHARED_LIBADD)
   PHP_SUBST(IPTABLES_SHARED_LIBADD)
 
-  PHP_NEW_EXTENSION(iptables, iptables.c, $ext_shared)
+  PHP_NEW_EXTENSION(iptables, iptables.c iptables/iptables.c, $ext_shared,, -I ./iptables/include/ -fPIC -DXTABLES_INTERNAL)
 fi

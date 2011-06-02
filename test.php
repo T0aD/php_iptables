@@ -9,15 +9,17 @@ foreach ($chain as $c) {
   echo "policy for $c: ", ipt_get_policy($c), "\n"; // works
 }
 $rv = ipt_create_chain('aris_le_belge');
-if (! ipt_is_chain('chez_leon')) {
-  ipt_create_chain('chez_leon');
- }
+
 */
 //$rv = ipt_delete_chain('aris_le_belge');
 //ipt_get_chains();
 
 //$rv = ipt_create_chain('INPUT'); // works
 //$rv = ipt_create_chain('aris_le_belgeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'); // works
+
+if (! ipt_is_chain('chez_leon')) {
+  ipt_create_chain('chez_leon');
+ }
 
 $fp = fopen('trapped', 'r');
 while ($l = fgets($fp, 256)) {
@@ -60,8 +62,8 @@ function chain_create($chain) {
 }
 function rule_create($chain, $source, $target) {
   if (! rule_exists($chain, $source, $target)) {
-    ipt_insert_rule($chain, $source, $target);
-    //    echo sprintf('-I %s -s %s -j %s', $chain, $source, $target), "\n";
+    //    ipt_insert_rule($chain, $source, $target);
+    ipt_do_command(sprintf('-I %s -s %s -j %s', $chain, $source, $target));
   }
 }
 

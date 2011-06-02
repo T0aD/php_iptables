@@ -36,6 +36,12 @@
 /* Include xtables */
 #include <xtables.h>
 
+/** Collect version from netfilter bundle */
+#include "iptables/include/iptables/internal.h"
+
+/** Get some external variables */
+#include "iptables/include/iptables.h"
+
 
 /* If you declare any globals in php_iptables.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(iptables)
@@ -49,6 +55,7 @@ static int le_iptables;
  * Every user visible function must have an entry in iptables_functions[].
  */
 const zend_function_entry iptables_functions[] = {
+	PHP_FE(ipt_do_command, NULL)
 	PHP_FE(ipt_insert_rule, NULL)
 	PHP_FE(ipt_is_chain, NULL)
 	PHP_FE(ipt_get_chains, NULL)
@@ -185,35 +192,6 @@ int php_iptc_commit(struct iptc_handle *handle)
 	return ret;
 }
 
-/** Ripped off iptables.c (maybe we should rip ALL OFF ? like the perl module ? */
-static struct ipt_entry *
-generate_entry(const struct ipt_entry *fw,
-               struct xtables_rule_match *matches,
-               struct ipt_entry_target *target)
-{
-	unsigned int size;
-	struct xtables_rule_match *matchp;
-	struct ipt_entry *e;
-
-	size = sizeof(struct ipt_entry);
-	for (matchp = matches; matchp; matchp = matchp->next)
-		size += matchp->match->m->u.match_size;
-
-	e = xtables_malloc(size + target->u.target_size);
-	*e = *fw;
-	e->target_offset = size;
-	e->next_offset = size + target->u.target_size;
-
-	size = 0;
-	for (matchp = matches; matchp; matchp = matchp->next) {
-		memcpy(e->elems + size, matchp->match->m, matchp->match->m->u.match_size);
-		size += matchp->match->m->u.match_size;
-	}
-	memcpy(e->elems + size, target, target->u.target_size);
-
-	return e;
-}
-
 
 /** Used to set the global table / handle to the rest of the functions 
 	Default to "filter"
@@ -275,9 +253,99 @@ PHP_FUNCTION(ipt_insert_rule)
 	RETURN_BOOL(ret);
 }
 
-/** do_command4() */
+/** Ripped from http://pthreads.blogspot.com/2008/10/explode-function-in-c.html */
+char **explode(char *string, char separator, int *arraySize)
+{
+	int start = 0, i, k = 0, count = 2;
+	char **strarr;
+	for (i = 0; string[i] != '\0'; i++){
+		/* Number of elements in the array */
+		if (string[i] == separator){
+			count++;
+		}
+	}
+	arraySize[0] = count;
+	//	arraySize[0] = count-1;
+	/* count is at least 2 to make room for the entire string
+	 * and the ending NULL */
+	strarr = calloc(count, sizeof(char*));
+	i = 0;
+	strarr[i] = strdup("iptables");
+	i++;
+	while (*string != '\0') {
+		if (*string == separator) {
+			strarr[i] = calloc(k - start + 2,sizeof(char));
+			strncpy(strarr[i], string - k + start, k - start);
+			strarr[i][k - start + 1] = '\0'; /* ensure null termination */
+			start = k;
+			start++;
+			i++;
+		}
+		string++;
+		k++;
+	}
+	/* copy the last part of the string after the last separator */
+	strarr[i] = calloc(k - start + 1,sizeof(char));
+	strncpy(strarr[i], string - k + start, k - start);
+	strarr[++i] = NULL;
+ 
+	return strarr;
+}
+
+
+/** do_command4() in 1.4.11 , do_command() in 1.4.4 */
 PHP_FUNCTION(ipt_do_command)
 {
+	struct iptc_handle *handle = NULL;
+	char *table = "filter";
+	const char *program_name = "iptables";
+	int ret, argc;
+	char **argv;
+
+	/** Arguments */
+	char *command;
+	int command_len;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &command, &command_len) == FAILURE) {
+		return;
+	}
+
+	check_root();
+	handle = iptc_init(table);
+	if (handle == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, 
+						 "couldn't create handle: %s (%d)", iptc_strerror(errno), errno);
+		RETURN_FALSE;
+	}
+
+	/** Trying to initialize the shit */
+	iptables_globals.program_name = "iptables";
+	ret = xtables_init_all(&iptables_globals, NFPROTO_IPV4);
+
+
+	/** Parsing the command */
+	php_printf("executing command: %s\n", command);
+	argv = explode(command, ' ', &argc);
+	unsigned int i;
+	for (i = 0; argv[i]; i++) {
+		php_printf("argv[%d]: %s (%d)\n", i, argv[i], argc);
+	}
+
+	//	php_printf("i: %d\n", i);
+	if (! strcmp(IPTABLES_VERSION, "1.4.11")) {
+		php_printf("using do_command4() version: %s\n", IPTABLES_VERSION);
+		ret = do_command4(argc, argv, &table, &handle);
+	} else if (! strcmp(IPTABLES_VERSION, "1.4.4")) {
+		php_printf("using do_command() version: %s\n", IPTABLES_VERSION);
+		ret = do_command(argc, argv, &table, &handle);
+	}
+	if (! ret) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, 
+						 "%s (%d)", iptc_strerror(errno), errno);	
+	} else {
+		php_iptc_commit(handle);
+	}
+	RETURN_BOOL(ret);
 }
 
 PHP_FUNCTION(ipt_is_chain)
@@ -315,11 +383,13 @@ PHP_FUNCTION(ipt_get_chains)
 		RETURN_FALSE;
 	}
 
+	/*
 	chain = iptc_first_chain(handle);
 	php_printf("chain found: %s\n", chain);
 	while ((chain = iptc_next_chain(handle)) != NULL) {
 		php_printf("chain found: %s\n", chain);
 	}
+	*/
 	RETURN_TRUE;
 }
 
