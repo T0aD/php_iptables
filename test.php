@@ -1,6 +1,13 @@
 #! /usr/bin/php -d enable_dl=on
 <?php
 dl('iptables.so');
+
+$chains = iptc_get_chains();
+foreach ($chains as $c) { iptc_flush_entries($c); }
+foreach ($chains as $c) { iptc_delete_chain($c); }
+iptc_commit();
+exit();
+
 //suck_my_balls("bitch"); // super works
 /*
 ipt_set_policy('FORWARD', 'DROP');
@@ -12,39 +19,60 @@ $rv = ipt_create_chain('aris_le_belge');
 
 */
 //$rv = ipt_delete_chain('aris_le_belge');
-//$chains = ipt_get_chains();
+
+//iptc_free();
+
+if (! iptc_is_chain('chez_leon2')) {
+  //  iptc_create_chain('chez_leon2');
+ }
+
+$chains = iptc_get_chains();
 //print_r($chains);
+/*
+for ($i = 0; $i < 10000; $i++) {
+  iptc_inc();
+ }
+echo "count: ", iptc_get(), "\n";
+*/
 
-iptc_inc();
-iptc_inc();
-iptc_inc();
-iptc_inc();
-iptc_inc();
-
-
-
-exit();
+//exit();
 //$rv = ipt_create_chain('INPUT'); // works
 //$rv = ipt_create_chain('aris_le_belgeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'); // works
 
 //ipt_do_command('-F');
 
-if (! ipt_is_chain('chez_leon')) {
-  ipt_create_chain('chez_leon');
- }
+//iptc_commit();
+//iptc_commit();
+//iptc_commit();
+//exit();
+
+$db32 = $db8 = $db16 = $db24 = array();
 
 $fp = fopen('trapped', 'r');
 while ($l = fgets($fp, 256)) {
   $l = trim($l);
   //  echo "ip to add: $l\n";
+
+  if (isset($db32[$l])) {
+    //    echo "already in DB: $l\n";
+    continue;
+  }
+
   fw_addIP('smtpbl', $l);
-  break;
+  $db32[$l] = true;
+  //  break;
  }
 fclose($fp);
 
-echo "caca!\n";
+iptc_commit();
+//iptc_free();
+
+//iptc_commit();
+
+//echo "caca!\n";
 
 function fw_addIP($name, $ip) {
+  global $db8, $db16, $db24;
   //  echo "adding ip $ip\n";
   $ip_t = explode('.', $ip);
   $subnet8 = $ip_t[0];
@@ -58,18 +86,29 @@ function fw_addIP($name, $ip) {
   chain_create(s("smtpbl-list-%s-8", $subnet8));
   //  ipt_flush_entries(s("smtpbl-list-%s-8", $subnet8));
 
-  rule_create($chain, s('%s.0.0.0/8', $subnet8), s('smtpbl-list-%s-8', $subnet8));
+  if (! isset($db8[$subnet8])) {
+    rule_create($chain, s('%s.0.0.0/8', $subnet8), s('smtpbl-list-%s-8', $subnet8));
+    $db8[$subnet8] = true;
+  }
 
   chain_create(s("smtpbl-list-%s-16", $subnet16));
   //  ipt_flush_entries(s("smtpbl-list-%s-16", $subnet16));
-  rule_create(s('smtpbl-list-%s-8', $subnet8), s('%s.0.0/16', $subnet16),
-              s('smtpbl-list-%s-16', $subnet16));
+  if (! isset($db16[$subnet16])) {
+    rule_create(s('smtpbl-list-%s-8', $subnet8), s('%s.0.0/16', $subnet16),
+		s('smtpbl-list-%s-16', $subnet16));
+    $db16[$subnet16] = true;
+  }
 
   chain_create(s("smtpbl-list-%s-24", $subnet24));
   //  ipt_flush_entries(s("smtpbl-list-%s-24", $subnet24));
-  rule_create(s('smtpbl-list-%s-16', $subnet16), s('%s.0/24', $subnet24),
-              s('smtpbl-list-%s-24', $subnet24));
+  if (! isset($db24[$subnet24])) {
+    rule_create(s('smtpbl-list-%s-16', $subnet16), s('%s.0/24', $subnet24),
+		s('smtpbl-list-%s-24', $subnet24));
+    $db24[$subnet24] = true;
+  }
+  //  print_r($db24);
 
+  chain_create('chez_leon');
   rule_create(s('smtpbl-list-%s-24', $subnet24), $ip, 'chez_leon');
 
   return true;
@@ -93,8 +132,8 @@ function s($format, $value) {
   return sprintf($format, $value);
 }
 function chain_create($chain) {
-  if (! ipt_is_chain($chain)) {
-    ipt_create_chain($chain);
+  if (! iptc_is_chain($chain)) {
+    iptc_create_chain($chain);
   }
 }
 function rule_create($chain, $source, $target) {
