@@ -42,9 +42,6 @@ PHP_RINIT_FUNCTION(iptables);
 PHP_RSHUTDOWN_FUNCTION(iptables);
 PHP_MINFO_FUNCTION(iptables);
 
-PHP_FUNCTION(iptc_inc);
-PHP_FUNCTION(iptc_get);
-
 PHP_FUNCTION(iptc_init);
 PHP_FUNCTION(iptc_free);
 PHP_FUNCTION(iptc_commit);
@@ -53,16 +50,12 @@ PHP_FUNCTION(iptc_is_chain);
 PHP_FUNCTION(iptc_create_chain);
 PHP_FUNCTION(iptc_delete_chain);
 PHP_FUNCTION(iptc_flush_entries);
+PHP_FUNCTION(iptc_get_references);
 
-PHP_FUNCTION(ipt_do_command);
-PHP_FUNCTION(ipt_insert_rule);
+PHP_FUNCTION(iptc_get_policy);
+PHP_FUNCTION(iptc_set_policy);
 
-PHP_FUNCTION(ipt_get_policy);
-PHP_FUNCTION(ipt_set_policy);
-
-
-PHP_FUNCTION(suck_my_balls);
-PHP_FUNCTION(confirm_iptables_compiled);	/* For testing, remove later. */
+PHP_FUNCTION(iptc_do_command);
 
 /* 
   	Declare any global variables you may need between the BEGIN
@@ -70,10 +63,7 @@ PHP_FUNCTION(confirm_iptables_compiled);	/* For testing, remove later. */
 */
 ZEND_BEGIN_MODULE_GLOBALS(iptables2)
     char *table;
-	struct iptc_handle *handle;
-    long counter;
-	//	long  global_value;
-	//	char *global_string;
+    struct iptc_handle *handle;
 ZEND_END_MODULE_GLOBALS(iptables2)
 
 

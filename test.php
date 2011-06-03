@@ -2,8 +2,7 @@
 <?php
 dl('iptables.so');
 
-if (34) {
-
+if (0) {
 $chains = iptc_get_chains();
 print_r($chains);
 foreach ($chains as $c) { iptc_flush_entries($c); }
@@ -13,15 +12,19 @@ iptc_commit();
  }
 
 //suck_my_balls("bitch"); // super works
-/*
-ipt_set_policy('FORWARD', 'DROP');
-$chain = array('INPUT', 'FORWARD');
-foreach ($chain as $c) {
-  echo "policy for $c: ", ipt_get_policy($c), "\n"; // works
-}
-$rv = ipt_create_chain('aris_le_belge');
 
-*/
+//iptc_set_policy('FORWARD', 'DROP');
+//$rv = iptc_create_chain('aris_le_belge');
+//iptc_set_policy('aris_le_belge', 'DROP');
+iptc_commit();
+$chains = iptc_get_chains();
+foreach ($chains as $c) {
+  //  echo "policy for $c: ", iptc_get_policy($c), "\n";
+  echo "references for $c: ", iptc_get_references($c), "\n";
+}
+exit(0);
+
+
 //$rv = ipt_delete_chain('aris_le_belge');
 
 //iptc_free();
