@@ -71,6 +71,7 @@ const zend_function_entry iptables_functions[] = {
 
 	PHP_FE(iptc_get_chains, NULL)
 	PHP_FE(iptc_is_chain, NULL)
+	PHP_FE(iptc_builtin, NULL)
 
 	PHP_FE(iptc_create_chain, NULL)
 	PHP_FE(iptc_delete_chain, NULL)
@@ -225,6 +226,14 @@ int php_iptc_init()
 
 PHP_FUNCTION(iptc_init)
 {
+	char *table;
+	int table_len;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &table, &table_len) == FAILURE) {
+		return;
+	}
+	IPTABLES_G(table) = table;
+	/* Reset handle is necessary to force iptc_init() to generate  a new one */
+	IPTABLES_G(handle) = NULL; 
 	RETURN_BOOL(php_iptc_init());
 }
 
@@ -263,13 +272,6 @@ int php_iptc_commit()
 PHP_FUNCTION(iptc_commit)
 {
 	RETURN_BOOL(php_iptc_commit());
-}
-
-/** Used to set the global table / handle to the rest of the functions 
-	Default to "filter"
-*/
-PHP_FUNCTION(ipt_set_table)
-{
 }
 
 /** Ripped from http://pthreads.blogspot.com/2008/10/explode-function-in-c.html */
@@ -348,6 +350,8 @@ PHP_FUNCTION(iptc_do_command)
 		ret = do_command4(argc, argv, &table, &handle);
 	} else if (! strcmp(IPTABLES_VERSION, "1.4.4")) {
 		ret = do_command(argc, argv, &table, &handle);
+	} else {
+		ret = do_command4(argc, argv, &table, &handle);
 	}
 	if (! ret) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, 
@@ -370,6 +374,25 @@ PHP_FUNCTION(iptc_is_chain)
 	handle = IPTABLES_G(handle);
 
 	ret = iptc_is_chain(chain, handle);
+	RETURN_BOOL(ret);
+}
+
+PHP_FUNCTION(iptc_builtin)
+{
+	struct iptc_handle *handle = NULL;
+	int ret;
+
+	/* Parameters */
+	char *chain;
+	int chain_len;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &chain, &chain_len) == FAILURE) {
+		return;
+	}
+	php_iptc_init();
+	handle = IPTABLES_G(handle);
+
+	ret = iptc_builtin(chain, handle);
 	RETURN_BOOL(ret);
 }
 

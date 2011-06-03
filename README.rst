@@ -38,10 +38,21 @@ Iptables is working using transactions, once you want to commit changes done, ju
  iptc_commit();
 
 
-iptc_init(), iptc_free()
-~~~~~~~~~~~~~~~~~~~~~~~~
+iptc_free()
+~~~~~~~~~~~
 
-No reason to call them manually, move away people, nothing to see here!
+No reason to call manually, move away people, nothing to see here!
+
+iptc_init()
+~~~~~~~~~~~
+
+iptc_init((string) $table)
+
+Selects a different table (the default one being "filter")::
+
+ iptc_init('nat');
+ iptc_create_chain('ucerta');
+ iptc_commit();
 
 
 iptc_get_chains()
@@ -68,6 +79,21 @@ Checks if a chain already exists::
   if (! iptc_is_chain($chain)) {
    echo "You'll never see this line\n";
   }
+ }
+
+iptc_builtin()
+~~~~~~~~~~~~~~
+
+* (bool) $ret = iptc_builtin((string) $chain)
+
+Returns whether a chain is a builtin chain or not.::
+
+ iptc_init('mangle');
+ $chains = iptc_get_chains();
+ foreach ($chains as $chain) {
+   if (! iptc_builtin($chain)) {
+     echo $chain, " ain't a builtin chain son!\n";
+   }
  }
 
 iptc_create_chain(), iptc_delete_chain()
@@ -123,9 +149,7 @@ Note: might have issues if you insert quotes inside, as the parser simulates an 
 TODO
 ----
 
-* Ability to set a table (so far hardcoded in DEFAULT_TABLE)
 * A config.m4 that really fills its purpose in life
-* Fix the iptables version detection before the do_command() call
 * Use a better parser than explode(' ', string) ?
 * Publish at PECL.php.net and become a star!
 

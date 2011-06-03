@@ -47,6 +47,7 @@ PHP_FUNCTION(iptc_free);
 PHP_FUNCTION(iptc_commit);
 PHP_FUNCTION(iptc_get_chains);
 PHP_FUNCTION(iptc_is_chain);
+PHP_FUNCTION(iptc_builtin);
 PHP_FUNCTION(iptc_create_chain);
 PHP_FUNCTION(iptc_delete_chain);
 PHP_FUNCTION(iptc_flush_entries);

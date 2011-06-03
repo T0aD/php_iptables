@@ -2,6 +2,25 @@
 <?php
 dl('iptables.so');
 
+iptc_init('filter');
+$chains = iptc_get_chains();
+foreach ($chains as $chain) {
+  if (! iptc_builtin($chain)) {
+    echo "$chain is not a builtin chain !\n";
+  }
+}
+exit();
+
+iptc_init('nat');
+$chains = iptc_get_chains();
+print_r($chains);
+iptc_init('mangle');
+print_r(iptc_get_chains());
+iptc_init('filter'); print_r(iptc_get_chains());
+exit();
+
+
+
 if (0) {
 $chains = iptc_get_chains();
 print_r($chains);
