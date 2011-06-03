@@ -2,11 +2,13 @@
 <?php
 dl('iptables.so');
 
+if (0) {
 $chains = iptc_get_chains();
 foreach ($chains as $c) { iptc_flush_entries($c); }
 foreach ($chains as $c) { iptc_delete_chain($c); }
 iptc_commit();
 exit();
+ }
 
 //suck_my_balls("bitch"); // super works
 /*
@@ -65,11 +67,6 @@ while ($l = fgets($fp, 256)) {
 fclose($fp);
 
 iptc_commit();
-//iptc_free();
-
-//iptc_commit();
-
-//echo "caca!\n";
 
 function fw_addIP($name, $ip) {
   global $db8, $db16, $db24;

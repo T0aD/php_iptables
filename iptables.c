@@ -374,13 +374,13 @@ char **explode(char *string, char separator, int *arraySize)
 	//	arraySize[0] = count-1;
 	/* count is at least 2 to make room for the entire string
 	 * and the ending NULL */
-	strarr = calloc(count, sizeof(char*));
+	strarr = ecalloc(count, sizeof(char*));
 	i = 0;
 	strarr[i] = strdup("iptables");
 	i++;
 	while (*string != '\0') {
 		if (*string == separator) {
-			strarr[i] = calloc(k - start + 2,sizeof(char));
+			strarr[i] = ecalloc(k - start + 2,sizeof(char));
 			strncpy(strarr[i], string - k + start, k - start);
 			strarr[i][k - start + 1] = '\0'; /* ensure null termination */
 			start = k;
@@ -391,7 +391,7 @@ char **explode(char *string, char separator, int *arraySize)
 		k++;
 	}
 	/* copy the last part of the string after the last separator */
-	strarr[i] = calloc(k - start + 1,sizeof(char));
+	strarr[i] = ecalloc(k - start + 1,sizeof(char));
 	strncpy(strarr[i], string - k + start, k - start);
 	strarr[++i] = NULL;
  
@@ -422,6 +422,7 @@ PHP_FUNCTION(ipt_do_command)
 
 	/** Trying to initialize the shit */
 	iptables_globals.program_name = "iptables";
+	iptables_globals.program_version = IPTABLES_VERSION;
 	ret = xtables_init_all(&iptables_globals, NFPROTO_IPV4);
 
 	/** Parsing the command */
