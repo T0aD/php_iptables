@@ -30,17 +30,26 @@ API documentation
 iptc_commit()
 ~~~~~~~~~~~~~
 
+iptc_commit((void))
+
+Commits changes performed
+
 Iptables is working using transactions, once you want to commit changes done, just call iptc_commit()::
 
  iptc_set_policy('FORWARD', 'DROP');
  iptc_commit();
 
 
-iptc_init()
-iptc_free()
+iptc_init(), iptc_free()
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+No reason to call them manually, move away people, nothing to see here!
+
 
 iptc_get_chains()
 ~~~~~~~~~~~~~~~~~
+
+(array) $chains = iptc_get_chains();
 
 Returns an array of existing chains::
 
@@ -51,6 +60,8 @@ Returns an array of existing chains::
 
 iptc_is_chain()
 ~~~~~~~~~~~~~~~
+
+(bool) $ret = iptc_is_chain((string) $chain)
 
 Checks if a chain already exists::
 
@@ -64,6 +75,9 @@ Checks if a chain already exists::
 iptc_create_chain(), iptc_delete_chain()
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+iptc_create_chain((string) $chain)
+iptc_delete_chain((string) $chain)
+
 Creates or deletes a given chain (as long as it's not a builtin chain)::
 
  $chains = iptc_get_chains();
@@ -72,15 +86,34 @@ Creates or deletes a given chain (as long as it's not a builtin chain)::
  }
 
 iptc_flush_entries()
+~~~~~~~~~~~~~~~~~~~~
+
+Removes the entries of a chain
+
+iptc_flush_entries((string) $chain)
+
 iptc_get_references()
+~~~~~~~~~~~~~~~~~~~~~
+
+Returns the number of references of a given chain
+
+(int) iptc_get_references((string) $chain)
+
 
 iptc_get_policy(), iptc_set_policy()
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Sets or gets the policy for a builtin chain
+
+(string) $policy = iptc_get_policy((string) $chain)
+(int) ret = iptc_set_policy((string) $chain, (string) $policy))
+
 iptc_do_command()
 ~~~~~~~~~~~~~~~~~
 
-Execute a command the classical way, like on the command line::
+iptc_do_command((string) $command)
+
+Executes a command the classical way, like on the command line::
 
  iptc_do_command('-I INPUT -d 217.73.17.12 -j ACCEPT');
  iptc_do_command('-I INPUT -s 82.67.199.204 -j CHEZ_LEON');
@@ -94,4 +127,7 @@ TODO
 
 * Ability to set a table (so far hardcoding in DEFAULT_TABLE)
 * A config.m4 that really fills its purpose in life
-* Uses a better parser than explode(' ', string) ?
+* Fix the iptables version detection before the do_command() call
+* Use a better parser than explode(' ', string) ?
+* Publish at PECL.php.net and become a star!
+
