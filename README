@@ -1,0 +1,15 @@
+Netfiler PHP extension
+
+How to install:
+
+Make sure you have the 2 netfilter libraries libxtables and libiptc
+
+1/ download the latest iptables package (so far working with 1.4.4 and 1.4.11)
+2/ extract it in the same directory as this extension
+3/ ln -s ./iptables-1.4.4 ./iptables
+4/ phpize 
+5/ ./configure --enable-iptables
+6/ make
+7/ enjoy your ./modules/iptables.so
+
+
