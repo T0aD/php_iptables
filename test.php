@@ -2,12 +2,14 @@
 <?php
 dl('iptables.so');
 
-if (0) {
+if (34) {
+
 $chains = iptc_get_chains();
+print_r($chains);
 foreach ($chains as $c) { iptc_flush_entries($c); }
 foreach ($chains as $c) { iptc_delete_chain($c); }
 iptc_commit();
-exit();
+//exit();
  }
 
 //suck_my_balls("bitch"); // super works
@@ -29,7 +31,7 @@ if (! iptc_is_chain('chez_leon2')) {
  }
 
 $chains = iptc_get_chains();
-//print_r($chains);
+print_r($chains);
 /*
 for ($i = 0; $i < 10000; $i++) {
   iptc_inc();

@@ -279,8 +279,6 @@ int php_iptc_commit()
 		return SUCCESS; /* Nothing to commit but no big deal */
 	}
 
-	php_printf("commit changes..\n");
-
 	if (! iptc_commit(handle)) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Cannot commit: %s (%d)",
 						 iptc_strerror(errno), errno);
@@ -426,7 +424,7 @@ PHP_FUNCTION(ipt_do_command)
 	ret = xtables_init_all(&iptables_globals, NFPROTO_IPV4);
 
 	/** Parsing the command */
-	php_printf("executing command: %s\n", command);
+	//	php_printf("executing command: %s\n", command);
 	argv = explode(command, ' ', &argc);
 	/* DEBUG 
 	unsigned int i;
