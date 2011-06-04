@@ -153,3 +153,9 @@ TODO
 * Use a better parser than explode(' ', string) ?
 * Publish at PECL.php.net and become a star!
 
+Gr33tZ
+------
+
+::
+ Freenode, #php-fr: <win> T0aD, ça marche un ipt_do_command('|| reboot'); ?
+
