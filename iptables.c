@@ -337,7 +337,7 @@ PHP_FUNCTION(iptc_do_command)
 
 	/** Trying to initialize the shit */
 	iptables_globals.program_name = "iptables";
-	iptables_globals.program_version = IPTABLES_VERSION;
+	//	iptables_globals.program_version = IPTABLES_VERSION;
 	ret = xtables_init_all(&iptables_globals, NFPROTO_IPV4);
 
 	/** Parsing the command */
@@ -346,13 +346,17 @@ PHP_FUNCTION(iptc_do_command)
 #endif
 	argv = explode(command, ' ', &argc);
 
-	if (! strcmp(IPTABLES_VERSION, "1.4.11")) {
-		ret = do_command4(argc, argv, &table, &handle);
-	} else if (! strcmp(IPTABLES_VERSION, "1.4.4")) {
+	/** From 1.4.11 do_command() becomes do_command4() in ipv4 */
+	/** Oh yeah, I do not use ipv6 muhahahahaha ! */
+	if (strncmp(IPTABLES_VERSION, "1.4.", 4)) { // 1.1 , 1.2, 1.3.xxx
 		ret = do_command(argc, argv, &table, &handle);
-	} else {
+	} else 	if (strcmp(IPTABLES_VERSION, "1.4.10") && 
+				strlen(IPTABLES_VERSION) >= strlen("1.4.11")) {
 		ret = do_command4(argc, argv, &table, &handle);
+	} else { // 1.4.1, 1.4.2, ...
+		ret = do_command(argc, argv, &table, &handle);
 	}
+
 	if (! ret) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, 
 						 "%s (%d)", iptc_strerror(errno), errno);	
