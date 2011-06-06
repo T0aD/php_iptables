@@ -231,7 +231,7 @@ PHP_FUNCTION(iptc_init)
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &table, &table_len) == FAILURE) {
 		return;
 	}
-	IPTABLES_G(table) = table;
+	IPTABLES_G(table) = estrndup(table, table_len);
 	/* Reset handle is necessary to force iptc_init() to generate  a new one */
 	IPTABLES_G(handle) = NULL; 
 	RETURN_BOOL(php_iptc_init());
@@ -291,7 +291,7 @@ char **explode(char *string, char separator, int *arraySize)
 	 * and the ending NULL */
 	strarr = ecalloc(count, sizeof(char*));
 	i = 0;
-	strarr[i] = strdup("iptables");
+	strarr[i] = estrdup("iptables");
 	i++;
 	while (*string != '\0') {
 		if (*string == separator) {
@@ -318,7 +318,6 @@ char **explode(char *string, char separator, int *arraySize)
 PHP_FUNCTION(iptc_do_command)
 {
 	struct iptc_handle *handle = NULL;
-	const char *program_name = "iptables";
 	char *table;
 	int ret, argc;
 	char **argv;
@@ -337,7 +336,6 @@ PHP_FUNCTION(iptc_do_command)
 
 	/** Trying to initialize the shit */
 	iptables_globals.program_name = "iptables";
-	//	iptables_globals.program_version = IPTABLES_VERSION;
 	ret = xtables_init_all(&iptables_globals, NFPROTO_IPV4);
 
 	/** Parsing the command */
